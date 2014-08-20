@@ -1,9 +1,6 @@
 (ns pirates.actions
   (:require
-    [pirates.pieces :as pieces])
-  (:gen-class
-    :methods [#^{:static true} [draw [int] Object]]
-    ))
+    [pirates.pieces :as pieces]))
 
 (defn draw
   "Draw n cards. Note that rather than having a deck we assume an
@@ -14,57 +11,68 @@
   ([player card](update-in player [card] #(inc %)))
   ([player card & more](reduce #(cards-to %1 %2) (cards-to player card) more)))
 
-;;Generated functions
-(defn -draw [n] (draw n))
+(defn piece-count
+  ([piece-slot] (reduce + (vals piece-slot)))
+  ([piece-slots index] (piece-count (get piece-slots index))))
 
-(defn space-available? [piece-slots index]
-  (and (< index (count piece-slots)) (< 0 (count (get piece-slots index)) 3)))
-(defn space-occupied? [piece-slots index] (not= (count (get piece-slots index)) 0))
+(defn space-available?
+  ([piece-slots index] (and (< index (count piece-slots)) (space-available? (get piece-slots index))))
+  ([piece-slot](< 0 (or (piece-count piece-slot) 0) 3)))
 
-(defn pirate-on-space? [pirate piece-slots index] (contains? (get piece-slots index) pirate))
-(defn find-pirate [pirate piece-slots] (first (filter #(contains? (get piece-slots %) pirate) (range (count piece-slots)))))
+(defn space-occupied? [game-state index]
+  (not= (piece-count (get-in game-state [:board :pieces index])) 0))
+
+(defn pirate-on-space? [pirate game-state index]
+  (if (get-in game-state [:board :pieces index pirate]) true false))
+
+(defn find-pirates [pirate game-state]
+  (let [n (count (get-in game-state [:board :pieces]))]
+    (filter #(> (or (get-in game-state [:board :pieces % pirate]) 0) 0) (range n))))
+
 (defn symbol-indices
   ([symbol board start] (filter #(= symbol (get board %)) (range start (count board))))
   ([symbol board] (symbol-indices symbol board 0)))
 
-(defn next-open [start-index symbol board piece-slots]
+(defn next-open [start-index symbol board]
   (or
     (first
-      (filter #(not (space-occupied? piece-slots %)) (symbol-indices symbol board start-index)))
+      (filter #(not (space-occupied? (:pieces board) %)) (symbol-indices symbol (:symbols board) start-index)))
     (dec (count board))))
 
 (defn next-fallback [start-index piece-slots]
   (first (filter #(space-available? piece-slots %) (range (dec start-index) 0 -1))))
 
-(defn play-card [card pirate board piece-slots]
-  (let [from-index (find-pirate pirate piece-slots)
-        to-index (next-open (inc from-index) card board piece-slots)
-        removed (disj (get piece-slots from-index) pirate)
-        added (conj (get piece-slots to-index) pirate)]
-    (assoc (assoc piece-slots from-index removed) to-index added)))
+(defn has-card? [card color game-state](< 0 (or (get-in game-state [:players color :cards card]) 0)))
 
-(defn execute-fall-back [from-index to-index pirate piece-slots players]
-  (let [removed (disj (get piece-slots from-index) pirate)
-        dest (get piece-slots to-index)
-        added (conj dest pirate)
-        num-cards (count dest)
-        player (first (filter #(= (:color pirate) (:color %)) players))
-        newplayers (filter #(not= % player) players)
-        newplayer (update-in player [:cards] #(apply cards-to % (draw num-cards)))]
-    [(assoc (assoc piece-slots from-index removed) to-index added)
-     (conj newplayers newplayer)]))
+(defn has-color? [color index game-state](< 0 (or (get-in game-state [:board :pieces index color]) 0)))
 
-(defn fall-back [pirate piece-slots players]
-  (let [from-index (find-pirate pirate piece-slots)
-        to-index (or (next-fallback from-index piece-slots) from-index)]
-    (if (= from-index to-index)
-      [piece-slots players]
-      (execute-fall-back from-index to-index pirate piece-slots players))))
+(defn execute-play-card [card-symbol pirate-color from-index game-state]
+  (let [to-index (next-open (inc from-index) card-symbol (get-in game-state [:board]))
+        removed (update-in game-state [:board :pieces from-index pirate-color] dec)
+        added (update-in removed [:board :pieces to-index pirate-color] inc)
+        de-carded (update-in added [:players pirate-color :cards card-symbol] dec)]
+    de-carded))
 
-(defn winner? [pieces color] (= 6 (count (filter #(= (:color %) color) (last pieces)))))
+(defn play-card [card-symbol pirate-color from-index game-state]
+  (if (and (has-card? card-symbol pirate-color game-state)
+           (has-color? pirate-color from-index game-state))
+    (execute-play-card card-symbol pirate-color from-index game-state)
+    game-state))
 
-;(defn take-turn [initial-player initial-pieces-slots done?]
-;  (loop [player initial-player pieces-slots initial-pieces-slots turn 0]
-;    (if (or (= 3 turn) (done?))
-;      2
-;      (recur 345 123 (inc turn)))))
+(defn execute-fall-back [from-index to-index pirate game-state]
+  (let [removed (update-in game-state [:board :pieces from-index pirate] dec)
+        num-cards (piece-count (get-in game-state [:board :pieces to-index]))
+        added (update-in removed [:board :pieces to-index pirate] inc)]
+    (update-in added [:players pirate :cards] #(apply cards-to % (draw num-cards)))))
+
+(defn fall-back [pirate start-index game-state]
+  (let [to-index (next-fallback start-index (get-in game-state [:board :pieces]))]
+    (if (and to-index (has-color? pirate start-index game-state))
+      (execute-fall-back start-index to-index pirate game-state)
+      game-state)))
+
+(defn winner? [game-state color] (= 6 (color (last (get-in game-state [:board :pieces])))))
+
+(defn cards [game-state color] (get-in game-state [:players color :cards]))
+
+(defn available-cards [game-state color] (filter #(> (val %) 0) (cards game-state color)))

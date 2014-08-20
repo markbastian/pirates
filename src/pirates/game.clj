@@ -10,61 +10,50 @@
                { :name "Bob" :color :yellow }
                { :name "Gene" :color :blue }})
 
-;(def board (setup/init-board (map :color player-prefs)))
-(def board (setup/gen-board))
-(def piece-places (setup/init-pieces (map :color player-prefs) board))
-(def players (setup/init-players player-prefs))
+(def game-state
+  { :players (setup/init-players player-prefs)
+    :board (setup/make-board (map :color player-prefs)) })
 
-(println "The board: " board)
-(println "The players: " players)
-(println "The pieces: " piece-places)
+(println "pieces at start: " (get-in game-state [:board :pieces 0]))
+(println "pieces somewhere else: " (get-in game-state [:board :pieces 4]))
+(println "pieces off board: " (get-in game-state [:board :pieces 400]))
 
-(println "pieces at start: " (get piece-places 0))
-(println "pieces somewhere else: " (get piece-places 4))
-(println "pieces off board: " (get piece-places 400))
+(println "space 0 available: " (actions/space-available? (get-in game-state [:board :pieces 0])))
+(println "space 4 available: " (actions/space-available? (get-in game-state [:board :pieces]) 4))
+(println "space 400 available: " (actions/space-available? (get-in game-state [:board :pieces]) 400))
 
-(println "space 0 available: " (actions/space-available? piece-places 0))
-(println "space 4 available: " (actions/space-available? piece-places 4))
-(println "space 400 available: " (actions/space-available? piece-places 400))
+(println "space 0 occupied: " (actions/space-occupied? game-state 0))
+(println "space 4 occupied: " (actions/space-occupied? game-state 4))
+(println "space 400 occupied: " (actions/space-occupied? game-state 400))
 
-(println "space 0 occupied: " (actions/space-occupied? piece-places 0))
-(println "space 4 occupied: " (actions/space-occupied? piece-places 4))
-(println "space 400 occupied: " (actions/space-occupied? piece-places 400))
+(println "test pirate at origin: " (actions/pirate-on-space? :blue game-state 0))
+(println "test pirate not somewhere else: " (actions/pirate-on-space? :blue game-state 3))
+(println "test pirate not off board: " (actions/pirate-on-space? :blue game-state 60))
 
-(def test-pirate {:color :blue, :index 0})
-(println "test pirate at origin: " (actions/pirate-on-space? test-pirate piece-places 0))
-(println "test pirate not somewhere else: " (actions/pirate-on-space? test-pirate piece-places 3))
-(println "test pirate not off board: " (actions/pirate-on-space? test-pirate piece-places 60))
+(println "Where are the pirates?: " (actions/find-pirates :blue game-state))
+(println "Where are the pirates?: " (actions/find-pirates :feas game-state))
 
-(println "Where is the pirate?: " (actions/find-pirate test-pirate piece-places))
-(println "Where is the pirate?: " (actions/find-pirate :feas piece-places))
+(println "hats are at: " (actions/symbol-indices :hat (get-in game-state [:board :symbols])))
+(println "pistols are at: " (actions/symbol-indices :pistol (get-in game-state [:board :symbols])))
 
-(println "hats are at: " (actions/symbol-indices :hat board))
-(println "pistols are at: " (actions/symbol-indices :pistol board))
+(println "Next available hat/boat from 0 is: " (actions/next-open 0 :hat (get-in game-state [:board])))
+(println "Next available hat/boat from 33 is: " (actions/next-open 15 :hat (get-in game-state [:board])))
+(println "Next available hat/boat from 36 is: " (actions/next-open 36 :hat (get-in game-state [:board])))
 
-(println "Next available from 0 is: " (actions/next-open 0 :hat board piece-places))AbstractMethodError
-(println "Next available from 33 is: " (actions/next-open 15 :hat board piece-places))
-(println "Next available from 36 is: " (actions/next-open 36 :hat board piece-places))
+(println "blue plays first card")
+(def game-state-1
+  (actions/play-card
+    (key (first (actions/available-cards game-state :blue))) :blue 0 game-state))
+(clojure.pprint/pprint game-state-1)
 
-(println "play :hat " (actions/play-card :hat test-pirate board piece-places))
-AbstractMethodError
-(def piece-places-1 (actions/play-card :hat (first (get piece-places 0)) board piece-places))
+(println "blue plays second card")
+(def game-state-2
+  (actions/play-card
+    (key (last (actions/available-cards game-state-1 :blue))) :blue 0 game-state-1))
+(clojure.pprint/pprint game-state-2)
 
-(println "######################################################################### " (first (get piece-places 0)) " to :hat #########################################################################")
-(ui/print-board board piece-places-1)
-
-(def piece-places-2 (actions/play-card :sword (first (get piece-places-1 0)) board piece-places-1))
-(println "#########################################################################" (first (get piece-places-1 0)) " to :sword #########################################################################")
-(ui/print-board board piece-places-2)
-
-(def piece-places-3 (actions/play-card :sword (first (get piece-places-2 0)) board piece-places-2))
-(println "#########################################################################" (first (get piece-places-2 0)) " to :sword #########################################################################")
-(ui/print-board board piece-places-3)
-
-(println "######################################################################### fall back! #########################################################################")
-(def fb (actions/fall-back {:color :blue, :index 5} piece-places-3 players))
-(ui/print-board board (first fb))
-
-
-
-
+(def n (last (actions/find-pirates :blue game-state-2)))
+(def to-n (actions/next-fallback n (get-in game-state-2 [:board :pieces])))
+(println "blue falls back from " n " to " to-n)
+(def game-state-3 (actions/fall-back :blue n game-state-2))
+(clojure.pprint/pprint game-state-3)

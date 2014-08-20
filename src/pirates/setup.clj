@@ -18,4 +18,7 @@
 
 (defn initial-hand [] (apply actions/cards-to empty-hand (actions/draw 6)))
 
-(defn init-players [players] (zipmap (map :color players) (map #(into {} { :name (:name %) :cards (initial-hand)}) players)))
+(defn init-players [players]
+  (zipmap
+    (map :color players)
+    (map #(into {} { :name (:name %) :cards (initial-hand) :actions 0 }) players)))

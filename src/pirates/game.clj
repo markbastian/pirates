@@ -6,13 +6,15 @@
   (:gen-class :name pirates.game))
 
 ;Board example usage functions
-(def player-prefs #{{ :name "Mark" :color :green }
-               { :name "Bob" :color :yellow }
-               { :name "Gene" :color :blue }})
+(def player-prefs
+  #{{ :name "Mark" :color :green }
+    { :name "Bob" :color :yellow }
+    { :name "Gene" :color :blue }})
 
 (def game-state
   { :players (setup/init-players player-prefs)
-    :board (setup/make-board (map :color player-prefs)) })
+    :board (setup/make-board (map :color player-prefs))
+    :turn-order (vec (map :color player-prefs))})
 
 (println "pieces at start: " (get-in game-state [:board :pieces 0]))
 (println "pieces somewhere else: " (get-in game-state [:board :pieces 4]))
@@ -57,3 +59,12 @@
 (println "blue falls back from " n " to " to-n)
 (def game-state-3 (actions/fall-back :blue n game-state-2))
 (clojure.pprint/pprint game-state-3)
+
+(defn play-first-card [color game-state]
+  (actions/play-card (key (first (actions/available-cards game-state color))) color 0 game-state))
+
+(println "Taking a full turn!!!!!")
+(def went (actions/take-turn :blue game-state play-first-card))
+(clojure.pprint/pprint went)
+(def went-again (actions/take-turn :blue went play-first-card))
+(clojure.pprint/pprint went-again)

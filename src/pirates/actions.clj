@@ -1,17 +1,49 @@
-(ns pirates.actions
-  (:require
-    [pirates.pieces :as pieces]))
+(ns pirates.actions)
+
+;The potential cards you can get.
+(def card-types #{:hat :flag :pistol :sword :bottle :keys})
+
+(def empty-hand (zipmap card-types (repeat 0)))
+
+;Pawn types - id'd by color.
+(def pirate-colors #{:red :green :blue :yellow :brown})
 
 (defn draw
   "Draw n cards. Note that rather than having a deck we assume an
   infinite number of uniformly distributed cards."
-  [n] (repeatedly n #(rand-nth (vec pieces/card-types))))
+  [n] (repeatedly n #(rand-nth (vec card-types))))
 
-(defn winner? [game-state color] (= 6 (color (last (get-in game-state [:board :pieces])))))
+(defn gen-board [] (conj (vec (conj (apply concat (repeat 6 (shuffle card-types))) :start)) :boat))
 
 (defn cards-to
   ([player card](update-in player [card] #(inc %)))
   ([player card & more](reduce #(cards-to %1 %2) (cards-to player card) more)))
+
+(defn init-pieces [used-colors board]
+  (let [empty-color-map (zipmap used-colors (repeat 0))
+        empty-slots (vec (repeat (count board) empty-color-map))]
+    (update-in empty-slots [0] #(zipmap (keys %) (repeat 6)))))
+
+(defn make-board [used-colors]
+  (let [board-sequence (gen-board)]
+    { :symbols board-sequence
+      :pieces (init-pieces used-colors board-sequence)}))
+
+(defn initial-hand [] (apply cards-to empty-hand (draw 6)))
+
+(defn create-turn-sequence [player-colors] (zipmap player-colors (rest (cycle player-colors))))
+
+(defn init-players [players]
+  (zipmap
+    (map :color players)
+    (map #(into {} { :name (:name %) :cards (initial-hand) :actions 0 }) players)))
+
+(defn init-game-state [player-prefs]
+  { :turn-order (create-turn-sequence (map :color player-prefs))
+    :players (init-players player-prefs)
+    :board (make-board (map :color player-prefs)) })
+
+(defn winner? [game-state color] (= 6 (color (last (get-in game-state [:board :pieces])))))
 
 (defn piece-count
   ([piece-slot] (reduce + (vals piece-slot)))
@@ -21,15 +53,7 @@
   ([piece-slots index] (and (< index (count piece-slots)) (space-available? (get piece-slots index))))
   ([piece-slot](< 0 (or (piece-count piece-slot) 0) 3)))
 
-(defn space-occupied? [game-state index]
-  (not= (piece-count (get-in game-state [:board :pieces index])) 0))
-
-(defn pirate-on-space? [pirate game-state index]
-  (if (get-in game-state [:board :pieces index pirate]) true false))
-
-(defn find-pirates [pirate game-state]
-  (let [n (count (get-in game-state [:board :pieces]))]
-    (filter #(> (or (get-in game-state [:board :pieces % pirate]) 0) 0) (range n))))
+(defn space-occupied? [index { { { i index } :pieces } :board }] (not= (piece-count i) 0))
 
 (defn symbol-indices
   ([symbol board start] (filter #(= symbol (get board %)) (range start (count board))))
@@ -40,7 +64,7 @@
         symbols (get-in game-state [:board :symbols])
         r (range start-index n)]
     (or
-      (first (filter #(and (not (space-occupied? game-state %)) (= symbol (get symbols %))) r))
+      (first (filter #(and (not (space-occupied? % game-state)) (= symbol (get symbols %))) r))
       (dec n))))
 
 (defn next-fallback [start-index piece-slots]
@@ -52,7 +76,29 @@
 
 (defn players-turn? [color game-state] (> (or (get-in game-state [:players color :actions]) 0) 0))
 
-(defn use-action [color game-state] (update-in game-state [:players color :actions] dec))
+(defn start-turn [color game-state] (assoc-in game-state [:players color :actions] 3))
+
+(defn use-action [color { { { actions :actions } color } :players { player-color color } :turn-order :as game-state }]
+  (let [decreased (update-in game-state [:players color :actions] dec)]
+    (if (= 1 actions) (start-turn player-color decreased) decreased)))
+
+(defn pass [color game-state]
+  (if (players-turn? color game-state)
+    (start-turn
+      (get-in game-state [:turn-order color])
+      (assoc-in game-state [:players color :actions] 0))))
+
+(defn space-contents
+  "Convert the pieces on the given space to a vector of pieces"
+  ([space] (vec (reduce concat (map #(repeat (val %) (key %)) space))))
+  ([game-state index]
+   (space-contents (get-in game-state [:board :pieces index]))))
+
+(defn hand-contents
+  "Convert the player's cards (map of cards to count) to a vector of cards."
+  ([hand] (vec (reduce concat (map #(repeat (val %) (key %)) hand))))
+  ([game-state color]
+   (hand-contents (get-in game-state [:players color :cards]))))
 
 (defn execute-play-card [card-symbol pirate-color from-index game-state]
   (let [to-index (next-open (inc from-index) card-symbol game-state)
@@ -61,6 +107,7 @@
         de-carded (update-in added [:players pirate-color :cards card-symbol] dec)]
     de-carded))
 
+;Should inline and use destructuring
 (defn play-card [card color from-index game-state]
   (if (and (player-has-card? card color game-state)
            (square-has-color? color from-index game-state)
@@ -82,13 +129,4 @@
       (use-action color (execute-fall-back start-index to-index color game-state))
       game-state)))
 
-(defn cards [game-state color] (get-in game-state [:players color :cards]))
-
-(defn available-cards [game-state color] (filter #(> (val %) 0) (cards game-state color)))
-
-(defn take-turn [color initial-game-state turn-action]
-  (let [give-turns (assoc-in initial-game-state [:players color :actions] 3)]
-    (loop [state give-turns winner false]
-      (if (or winner (not (players-turn? color state)))
-        state
-        (recur (turn-action color state) (winner? state color))))))
+(defn active-player [{p :players}] (first (filter #(> (:actions (val %)) 0) p)))

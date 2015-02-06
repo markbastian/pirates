@@ -13,11 +13,11 @@
   infinite number of uniformly distributed cards."
   [n] (repeatedly n #(rand-nth (vec card-types))))
 
-(defn gen-board [] (conj (vec (conj (apply concat (repeat 6 (shuffle card-types))) :start)) :boat))
+(defn gen-board [] (into (reduce into [:start] (repeat 6 (shuffle card-types))) [:boat]))
 
-(defn cards-to
-  ([player card](update-in player [card] #(inc %)))
-  ([player card & more](reduce #(cards-to %1 %2) (cards-to player card) more)))
+(defn cards->hand
+  ([hand card](update-in hand [card] inc))
+  ([hand card & more](reduce #(cards->hand %1 %2) (cards->hand hand card) more)))
 
 (defn init-pieces [used-colors board]
   (let [empty-color-map (zipmap used-colors (repeat 0))
@@ -29,7 +29,7 @@
     { :symbols board-sequence
       :pieces (init-pieces used-colors board-sequence)}))
 
-(defn initial-hand [] (apply cards-to empty-hand (draw 6)))
+(defn initial-hand [] (apply cards->hand empty-hand (draw 6)))
 
 (defn create-turn-sequence [player-colors] (zipmap player-colors (rest (cycle player-colors))))
 
@@ -43,7 +43,7 @@
     :players (init-players player-prefs)
     :board (make-board (map :color player-prefs)) })
 
-(defn winner? [game-state color] (= 6 (color (last (get-in game-state [:board :pieces])))))
+(defn winner? [{ { p :pieces } :board } color] (-> p last color (= 6)))
 
 (defn piece-count
   ([piece-slot] (reduce + (vals piece-slot)))
@@ -59,10 +59,8 @@
   ([symbol board start] (filter #(= symbol (get board %)) (range start (count board))))
   ([symbol board] (symbol-indices symbol board 0)))
 
-(defn next-open [start-index symbol game-state]
-  (let [n (count (get-in game-state [:board :pieces]))
-        symbols (get-in game-state [:board :symbols])
-        r (range start-index n)]
+(defn next-open [start-index symbol { { :keys [pieces symbols] } :board :as game-state }]
+  (let [n (count pieces) r (range start-index n)]
     (or
       (first (filter #(and (not (space-occupied? % game-state)) (= symbol (get symbols %))) r))
       (dec n))))
@@ -74,7 +72,7 @@
 
 (defn square-has-color? [color index game-state](< 0 (or (get-in game-state [:board :pieces index color]) 0)))
 
-(defn players-turn? [color game-state] (> (or (get-in game-state [:players color :actions]) 0) 0))
+(defn players-turn? [color { { { actions :actions } color } :players }] (> (or actions 0) 0))
 
 (defn start-turn [color game-state] (assoc-in game-state [:players color :actions] 3))
 
@@ -119,7 +117,7 @@
   (let [removed (update-in game-state [:board :pieces from-index pirate] dec)
         num-cards (piece-count (get-in game-state [:board :pieces to-index]))
         added (update-in removed [:board :pieces to-index pirate] inc)]
-    (update-in added [:players pirate :cards] #(apply cards-to % (draw num-cards)))))
+    (update-in added [:players pirate :cards] #(apply cards->hand % (draw num-cards)))))
 
 (defn fall-back [color start-index game-state]
   (let [to-index (next-fallback start-index (get-in game-state [:board :pieces]))]

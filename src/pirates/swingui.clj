@@ -3,16 +3,11 @@
   (:require [pirates.actions :as actions]
             [clojure.java.io :as io]
             [clojure.pprint])
-  (:import (java.awt Graphics2D Color BorderLayout)
+  (:import (java.awt Color BorderLayout Component Graphics2D)
            (javax.imageio ImageIO)
-           (javax.swing JDialog JLabel JTextField JComboBox JFrame JPanel ButtonGroup JButton JPopupMenu JMenuItem
-                        JOptionPane)
-           (java.awt GridBagConstraints GridBagLayout Component Graphics2D)
-           (javafx.embed.swing JFXPanel)
-           (javafx.application Platform)
-           (javafx.scene Scene Group)
-           (java.awt.geom AffineTransform Rectangle2D$Double Ellipse2D Ellipse2D$Double)
-           (java.awt.event MouseListener MouseAdapter MouseEvent ActionListener)))
+           (javax.swing JFrame JPopupMenu JMenuItem JOptionPane)
+           (java.awt.geom Rectangle2D$Double Ellipse2D$Double)
+           (java.awt.event MouseAdapter ActionListener MouseEvent)))
 
 (def images
   { :start  (ImageIO/read (io/input-stream "hands6.png"))
@@ -207,11 +202,11 @@
       (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE))
     frame))
 
-;(frame
-;  (actions/init-game-state
-;    #{{ :name "Mark" :color :green }
-;      { :name "Bob" :color :yellow }
-;      { :name "Gene" :color :blue }}))
+(frame
+  (actions/init-game-state
+    #{{ :name "Mark" :color :green }
+      { :name "Bob" :color :yellow }
+      { :name "Gene" :color :blue }}))
 
 (defn -main []
   (let [n (JOptionPane/showInputDialog nil "Enter players (2-5):")

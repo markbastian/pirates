@@ -30,6 +30,6 @@ FIXME: listing of options this app accepts.
 
 ## License
 
-Copyright © 2013 FIXME
+Copyright © 2015 Mark Bastian
 
 Distributed under the Eclipse Public License, the same as Clojure.

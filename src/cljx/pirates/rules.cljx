@@ -1,4 +1,4 @@
-(ns pirates.actions)
+(ns pirates.rules)
 
 ;The potential cards you can get.
 (def card-types #{:hat :flag :pistol :sword :bottle :keys})

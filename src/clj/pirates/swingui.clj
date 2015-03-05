@@ -1,6 +1,6 @@
 (ns pirates.swingui
   (:gen-class)
-  (:require [pirates.actions :as actions]
+  (:require [pirates.rules :as rules]
             [clojure.java.io :as io]
             [clojure.pprint])
   (:import (java.awt Color BorderLayout Component Graphics2D)
@@ -44,8 +44,8 @@
 
 (def hand-shapes
   (zipmap
-    (map #(create-square [9 %] 50) (range (count actions/card-types)))
-    actions/card-types))
+    (map #(create-square [9 %] 50) (range (count rules/card-types)))
+    rules/card-types))
 
 (defn draw-squares [board g]
   (doseq [i (range (count board))]
@@ -81,12 +81,12 @@
 ;http://en.wikibooks.org/wiki/Clojure_Programming/Examples/API_Examples/Multimethod
 ;fn is a dispatch function using the same args as the actual function to be dispatched.
 ;Sort of a pre-eval'ed function.
-(defmulti draw-piece (fn [pieces _ _] (count (actions/space-contents pieces))))
+(defmulti draw-piece (fn [pieces _ _] (count (rules/space-contents pieces))))
 
 (defmethod draw-piece 0 [_ _ _])
 
 (defmethod draw-piece 1 [pieces boundary g]
-  (let [piece (first (actions/space-contents pieces))
+  (let [piece (first (rules/space-contents pieces))
         color (piece color-map)
         cx (.getCenterX boundary)
         cy (.getCenterY boundary)
@@ -96,9 +96,9 @@
     (.fill g shape)))
 
 (defmethod draw-piece 2 [pieces boundary g]
-  (let [piece1 (first (actions/space-contents pieces))
+  (let [piece1 (first (rules/space-contents pieces))
         color1 (piece1 color-map)
-        piece2 (second (actions/space-contents pieces))
+        piece2 (second (rules/space-contents pieces))
         color2 (piece2 color-map)
         cx (.getCenterX boundary)
         cy (.getCenterY boundary)
@@ -109,7 +109,7 @@
     (.fill g (Ellipse2D$Double. (- cx (* r 0.5)) (- (- cy (* r 0.5)) (/ r 2.0)) r r))))
 
 (defmethod draw-piece :default [pieces boundary g]
-  (let [p (actions/space-contents pieces)
+  (let [p (rules/space-contents pieces)
         n (count p)
         cx (.getCenterX boundary)
         cy (.getCenterY boundary)
@@ -139,21 +139,21 @@
 (defn play-card-action [parent game-state card color square-index]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (dosync (ref-set game-state (actions/play-card card color square-index @game-state)))
+      (dosync (ref-set game-state (rules/play-card card color square-index @game-state)))
       (.repaint parent)
-      (if (actions/winner? @game-state color)
+      (if (rules/winner? @game-state color)
         (JOptionPane/showMessageDialog parent (str color " is the winner!"))))))
 
 (defn fall-back-action [parent game-state color square-index]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (dosync (ref-set game-state (actions/fall-back color square-index @game-state)))
+      (dosync (ref-set game-state (rules/fall-back color square-index @game-state)))
       (.repaint parent))))
 
 (defn pass-action [parent game-state color]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (dosync (ref-set game-state (actions/pass color @game-state)))
+      (dosync (ref-set game-state (rules/pass color @game-state)))
       (.repaint parent))))
 
 (defn popup [parent event cards game-state color square-index]
@@ -179,7 +179,7 @@
   (proxy [MouseAdapter] []
     (mousePressed [event]
       (when-let [clicked (get-click-index (-> event .getPoint .x) (-> event .getPoint .y))]
-        (let [player (actions/active-player @game-state)
+        (let [player (rules/active-player @game-state)
               color (key player)]
           (popup parent event (get-in @game-state [:players color :cards]) game-state color clicked))))))
 
@@ -188,14 +188,14 @@
                     (paint [g]
                       (draw-squares (get-in @game-state [:board :symbols]) g)
                       (draw-pieces (get-in @game-state [:board :pieces]) g)
-                      (draw-cards (actions/active-player @game-state) g)))]
+                      (draw-cards (rules/active-player @game-state) g)))]
     (.addMouseListener component (clicker component game-state))
     component))
 
 (defn frame [initial-game-state]
   (let [frame (JFrame. "Player Options")
         first-player (first (keys (:turn-order initial-game-state)))
-        started (actions/start-turn first-player initial-game-state)
+        started (rules/start-turn first-player initial-game-state)
         game-state (ref started)]
     (doto frame
       (.setVisible true)
@@ -206,14 +206,14 @@
     frame))
 
 ;(frame
-;  (actions/init-game-state
+;  (rules/init-game-state
 ;    #{{ :name "Mark" :color :green }
 ;      { :name "Bob" :color :yellow }
 ;      { :name "Gene" :color :blue }}))
 
 (defn -main []
   (let [n (JOptionPane/showInputDialog nil "Enter players (2-5):")
-        colors (take (read-string n) actions/pirate-colors)
+        colors (take (read-string n) rules/pirate-colors)
         players (map #(partial {:color % :name (str % )}) colors)]
     (frame 
-      (actions/init-game-state players))))
+      (rules/init-game-state players))))

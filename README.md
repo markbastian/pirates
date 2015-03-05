@@ -1,32 +1,33 @@
-# my-stuff
+# Pirates: A Clojure implementation of the Cartagena board game.
 
-FIXME: description
+This was my first non-trivial Clojure project. It's an implementation of the [Cartagena board 
+game](http://boardgamegeek.com/boardgame/826/cartagena) in Clojure. The rules are all found in rules.cljx. Cljx was used
+since at some point I'd like to make a web gui as well. The program can be launched from swingui.clj. I apologize up
+front for the programmer art. The main goal was to explore how a desktop app could be written in Clojure. Coming from 
+the Java and Scala worlds, I was quite impressed by how concise the application is. The majority of the code is Swing,
+and that could probably be reduced a lot using seesaw or similar.
 
 ## Installation
 
-Download from http://example.com/FIXME.
+From a repl, uncomment and run the frame method. Alternatively, lein run does the trick. You can also bundle the app
+with lein compile, lein uberjar.
 
 ## Usage
 
-FIXME: explanation
+Double-click the executable jar. To take a turn, right click on the square with your colored dot (pirate) and select an
+action. Once you have all of your pirates in the boat, you win. You are assigned a color (pick the one you want that
+pops up) and when your cards (icons on the right) are your color, it is your turn. It's a pretty minimal UI :(
 
-    $ java -jar my-stuff-0.1.0-standalone.jar [args]
+## Design
 
-## Options
+This app was written as more of an exercise in learning Clojure than in writing a fun game (that takes a lot of work),
+but the cool pattern I've used since is 1) creating business logic in pure functional form, 2) creating a stateful UI in
+whatever framework you want, and 3) using an atom, agent, or ref to manage a state instance that bridges the UI and the 
+logic. Pretty cool!
 
-FIXME: listing of options this app accepts.
+## Contributors
 
-## Examples
-
-...
-
-### Bugs
-
-...
-
-### Any Other Sections
-### That You Think
-### Might be Useful
+If anyone out there wants to add AI, better art, online multiplayer, etc. I'd be more than happy to accept input or collaborate.
 
 ## License
 

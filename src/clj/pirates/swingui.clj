@@ -176,12 +176,13 @@
     (if (.isPopupTrigger event) (.show menu component x y))))
 
 (defn clicker [parent game-state]
-  (proxy [MouseAdapter] []
-    (mousePressed [event]
-      (when-let [clicked (get-click-index (-> event .getPoint .x) (-> event .getPoint .y))]
-        (let [player (rules/active-player @game-state)
-              color (key player)]
-          (popup parent event (get-in @game-state [:players color :cards]) game-state color clicked))))))
+  (let [click-handler #(when-let [clicked (get-click-index (-> % .getPoint .x) (-> % .getPoint .y))]
+                        (let [player (rules/active-player @game-state)
+                              color (key player)]
+                          (popup parent % (get-in @game-state [:players color :cards]) game-state color clicked)))]
+    (proxy [MouseAdapter] []
+      (mousePressed [event] (click-handler event))
+      (mouseReleased [event] (click-handler event)))))
 
 (defn c [game-state]
   (let [component (proxy [Component] []

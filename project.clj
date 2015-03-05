@@ -8,6 +8,7 @@
   :auto-clean false
   :prep-tasks [["cljx" "once"]]
   :source-paths ["src/clj"]
+  :resource-paths ["resources"]
   :profiles {:dev {:plugins [[org.clojure/clojurescript "0.0-2657"]
                              [com.keminglabs/cljx "0.5.0"]
                              [lein-cljsbuild "1.0.4"]

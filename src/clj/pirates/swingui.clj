@@ -5,19 +5,21 @@
             [clojure.pprint])
   (:import (java.awt Color BorderLayout Component Graphics2D)
            (javax.imageio ImageIO)
-           (javax.swing JFrame JPopupMenu JMenuItem JOptionPane)
+           (javax.swing JFrame JPopupMenu JMenuItem JOptionPane JLabel)
            (java.awt.geom Rectangle2D$Double Ellipse2D$Double)
            (java.awt.event MouseAdapter ActionListener MouseEvent)))
 
+(defn load-image [s] (-> s io/resource io/input-stream ImageIO/read))
+
 (def images
-  { :start  (ImageIO/read (io/input-stream "hands6.png"))
-    :boat   (ImageIO/read (io/input-stream "sail1.png"))
-    :keys   (ImageIO/read (io/input-stream "key142.png"))
-    :bottle (ImageIO/read (io/input-stream "wine47.png"))
-    :flag   (ImageIO/read (io/input-stream "halloween16.png"))
-    :hat    (ImageIO/read (io/input-stream "fedora.png"))
-    :pistol (ImageIO/read (io/input-stream "gun1.png"))
-    :sword  (ImageIO/read (io/input-stream "sword1.png"))})
+  { :start  (load-image "pirates/hands6.png")
+    :boat   (load-image "pirates/sail1.png")
+    :keys   (load-image "pirates/old45.png")
+    :bottle (load-image "pirates/wine47.png")
+    :flag   (load-image "pirates/halloween16.png")
+    :hat    (load-image "pirates/fedora.png")
+    :pistol (load-image "pirates/old3.png")
+    :sword  (load-image "pirates/sword1.png")})
 
 (def color-map
   { :red Color/RED :green Color/GREEN :blue Color/BLUE :yellow Color/YELLOW :brown (Color. 139 69 19) })
@@ -199,17 +201,19 @@
       (.setVisible true)
       (.setSize 800 600)
       (.add (c game-state) BorderLayout/CENTER)
+      (.add (JLabel. "Right-click on square with piece to make a move.") BorderLayout/SOUTH)
       (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE))
     frame))
 
-(frame
-  (actions/init-game-state
-    #{{ :name "Mark" :color :green }
-      { :name "Bob" :color :yellow }
-      { :name "Gene" :color :blue }}))
+;(frame
+;  (actions/init-game-state
+;    #{{ :name "Mark" :color :green }
+;      { :name "Bob" :color :yellow }
+;      { :name "Gene" :color :blue }}))
 
 (defn -main []
   (let [n (JOptionPane/showInputDialog nil "Enter players (2-5):")
         colors (take (read-string n) actions/pirate-colors)
         players (map #(partial {:color % :name (str % )}) colors)]
-    (frame (actions/init-game-state players))))
+    (frame 
+      (actions/init-game-state players))))

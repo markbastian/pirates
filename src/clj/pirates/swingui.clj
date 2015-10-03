@@ -2,10 +2,10 @@
   (:gen-class)
   (:require [pirates.rules :as rules]
             [clojure.java.io :as io]
-            [clojure.pprint])
+            [clojure.pprint :as pp])
   (:import (java.awt Color BorderLayout Component Graphics2D Shape)
            (javax.imageio ImageIO)
-           (javax.swing JFrame JPopupMenu JMenuItem JOptionPane JLabel)
+           (javax.swing JFrame JPopupMenu JMenuItem JOptionPane JLabel SwingUtilities)
            (java.awt.geom Rectangle2D$Double Ellipse2D$Double RectangularShape)
            (java.awt.event MouseAdapter ActionListener MouseEvent)))
 
@@ -49,7 +49,7 @@
   (.drawImage g image (.getMinX shape) (.getMinY shape) (.getMaxX shape) (.getMaxY shape)
               0 0 (.getWidth image) (.getHeight image) nil))
 
-(defn draw-squares [board ^Graphics2D g]
+(defn draw-squares [^Graphics2D g board]
   (doseq [i (range (count board))]
     (let [image ((get board i) images)
           ^RectangularShape shape (get track-shapes i)]
@@ -59,7 +59,7 @@
 
 (defn centered-circle [cx cy r](Ellipse2D$Double. (- cx r) (- cy r) (* r 2) (* r 2)))
 
-(defn draw-cards [player ^Graphics2D g]
+(defn draw-cards [^Graphics2D g player]
   (let [color (color-map (key player))
         hand (:cards (val player))]
     (doseq [hand-shape hand-shapes]
@@ -75,11 +75,11 @@
           (.setPaint Color/BLACK)
           (.drawString (str (card-type hand)) (float (+ dx1 (.getWidth shape))) (float (+ dy1 (.getHeight shape)))))))))
 
-(defmulti draw-piece (fn [pieces _ _] (count (rules/space-contents pieces))))
+(defmulti draw-piece (fn [_ pieces _] (count (rules/space-contents pieces))))
 
 (defmethod draw-piece 0 [_ _ _])
 
-(defmethod draw-piece 1 [pieces boundary ^Graphics2D g]
+(defmethod draw-piece 1 [^Graphics2D g pieces boundary]
   (let [piece (first (rules/space-contents pieces))
         color (piece color-map)
         cx (.getCenterX boundary)
@@ -89,7 +89,7 @@
     (.setColor g color)
     (.fill g shape)))
 
-(defmethod draw-piece 2 [pieces boundary ^Graphics2D g]
+(defmethod draw-piece 2 [^Graphics2D g pieces boundary]
   (let [piece1 (first (rules/space-contents pieces))
         color1 (piece1 color-map)
         piece2 (second (rules/space-contents pieces))
@@ -102,7 +102,7 @@
     (.setColor g color2)
     (.fill g (Ellipse2D$Double. (- cx (* r 0.5)) (- (- cy (* r 0.5)) (/ r 2.0)) r r))))
 
-(defmethod draw-piece :default [pieces boundary ^Graphics2D g]
+(defmethod draw-piece :default [^Graphics2D g pieces boundary]
   (let [p (rules/space-contents pieces)
         n (count p)
         cx (.getCenterX boundary)
@@ -120,54 +120,34 @@
         (.fill g shape)))))
 
 (defn draw-pieces
-  ([pieces boundary ^Graphics2D g] (draw-piece pieces boundary g))
-  ([pieces ^Graphics2D g]
+  ([^Graphics2D g pieces boundary] (draw-piece g pieces boundary))
+  ([^Graphics2D g pieces]
    (doseq [i (range (count pieces))]
     (let [local-pieces (get pieces i)
           shape (get track-shapes i)]
-       (draw-pieces local-pieces shape g)))))
+       (draw-pieces g local-pieces shape)))))
 
 (defn get-click-index [x y]
   (first (filter #(.contains ^Shape (get track-shapes %) x y) (range (count track-shapes)))))
 
-(defn play-card-action [parent game-state card square-index]
+(defn create-action [parent action]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (swap! game-state rules/play-card card square-index)
-      (.repaint parent)
-      (if (rules/winner? @game-state)
-        (JOptionPane/showMessageDialog parent (str (key (rules/active-player @game-state)) " is the winner!"))))))
-
-(defn fall-back-action [parent game-state square-index]
-  (proxy [ActionListener] []
-    (actionPerformed [_]
-      (swap! game-state rules/fall-back square-index)
-      (.repaint parent))))
-
-(defn pass-action [parent game-state]
-  (proxy [ActionListener] []
-    (actionPerformed [_]
-      (swap! game-state rules/pass )
+      (action)
       (.repaint parent))))
 
 (defn popup [parent ^MouseEvent event cards game-state square-index]
-  (let [menu (JPopupMenu.)
-        playable-cards (filter #(> (val %) 0) cards)
-        play-card-buttons (map #(JMenuItem. (str "Play " %)) playable-cards)
-        zm (zipmap playable-cards play-card-buttons)
-        fall-back (JMenuItem. "Fall Back")
-        pass (JMenuItem. "Pass")
-        component (.getComponent event)
-        x (.x (.getPoint event))
-        y (.y (.getPoint event))]
-    (doseq [c zm]
-      (.addActionListener (val c) (play-card-action parent game-state (first (key c)) square-index))
-      (.add menu (val c)))
-    (.addActionListener fall-back (fall-back-action parent game-state square-index))
-    (.add menu fall-back)
-    (.addActionListener pass (pass-action parent game-state))
-    (.add menu pass)
-    (if (.isPopupTrigger event) (.show menu component x y))))
+  (let [playable-cards (filter #(> (val %) 0) cards)
+        f (fn [menu]
+            (doseq [c (zipmap playable-cards (map #(JMenuItem. (str "Play " %)) playable-cards))]
+              (.addActionListener (val c) (create-action parent #(swap! game-state rules/play-card (first (key c)) square-index)))
+              (.add menu (val c))))]
+    (if (.isPopupTrigger event)
+      (.show (doto (JPopupMenu.)
+               f
+               (.add (doto (JMenuItem. "Fall Back") (.addActionListener (create-action parent #(swap! game-state rules/fall-back square-index)))))
+               (.add (doto (JMenuItem. "Pass") (.addActionListener (create-action parent #(swap! game-state rules/pass))))))
+             (.getComponent event) (.x (.getPoint event)) (.y (.getPoint event))))))
 
 (defn clicker [parent game-state]
   (let [click-handler #(when-let [clicked (get-click-index (-> % .getPoint .x) (-> % .getPoint .y))]
@@ -180,17 +160,30 @@
 (defn c [game-state]
   (let [component (proxy [Component] []
                     (paint [g]
-                      (draw-squares (get-in @game-state [:board :symbols]) g)
-                      (draw-pieces (get-in @game-state [:board :pieces]) g)
-                      (draw-cards (rules/active-player @game-state) g)))]
+                      (doto g
+                        (draw-squares (get-in @game-state [:board :symbols]))
+                        (draw-pieces (get-in @game-state [:board :pieces]))
+                        (draw-cards (rules/active-player @game-state)))))]
     (.addMouseListener component (clicker component game-state))
     component))
+
+(defn setup-winner-watch [state]
+  (add-watch state :watch-for-winner
+             (fn [_ _ _ n]
+               (if (rules/winner? n)
+                 (SwingUtilities/invokeLater (JOptionPane/showMessageDialog nil (str (key (rules/active-player n)) " is the winner!")))))))
+
+(defn almost-win [state]
+  (-> state
+      ;(update-in state [:board :pieces 0 :green] dec)
+      (doto pp/pprint)))
 
 (defn frame [initial-game-state exit-condition]
   (let [frame (JFrame. "Player Options")
         first-player (first (keys (:turn-order initial-game-state)))
-        started (rules/start-turn first-player initial-game-state)
-        game-state (atom started)]
+        started (rules/start-turn initial-game-state first-player)
+        game-state (atom (almost-win started))]
+    (setup-winner-watch game-state)
     (doto frame
       (.setVisible true)
       (.setSize 800 600)

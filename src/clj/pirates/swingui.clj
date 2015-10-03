@@ -130,27 +130,27 @@
 (defn get-click-index [x y]
   (first (filter #(.contains ^Shape (get track-shapes %) x y) (range (count track-shapes)))))
 
-(defn play-card-action [parent game-state card color square-index]
+(defn play-card-action [parent game-state card square-index]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (reset! game-state (rules/play-card card color square-index @game-state))
+      (swap! game-state rules/play-card card square-index)
       (.repaint parent)
-      (if (rules/winner? @game-state color)
-        (JOptionPane/showMessageDialog parent (str color " is the winner!"))))))
+      (if (rules/winner? @game-state)
+        (JOptionPane/showMessageDialog parent (str (key (rules/active-player @game-state)) " is the winner!"))))))
 
-(defn fall-back-action [parent game-state color square-index]
+(defn fall-back-action [parent game-state square-index]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (reset! game-state (rules/fall-back color square-index @game-state))
+      (swap! game-state rules/fall-back square-index)
       (.repaint parent))))
 
-(defn pass-action [parent game-state color]
+(defn pass-action [parent game-state]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (reset! game-state (rules/pass color @game-state))
+      (swap! game-state rules/pass )
       (.repaint parent))))
 
-(defn popup [parent ^MouseEvent event cards game-state color square-index]
+(defn popup [parent ^MouseEvent event cards game-state square-index]
   (let [menu (JPopupMenu.)
         playable-cards (filter #(> (val %) 0) cards)
         play-card-buttons (map #(JMenuItem. (str "Play " %)) playable-cards)
@@ -161,19 +161,18 @@
         x (.x (.getPoint event))
         y (.y (.getPoint event))]
     (doseq [c zm]
-      (.addActionListener (val c) (play-card-action parent game-state (first (key c)) color square-index))
+      (.addActionListener (val c) (play-card-action parent game-state (first (key c)) square-index))
       (.add menu (val c)))
-    (.addActionListener fall-back (fall-back-action parent game-state color square-index))
+    (.addActionListener fall-back (fall-back-action parent game-state square-index))
     (.add menu fall-back)
-    (.addActionListener pass (pass-action parent game-state color))
+    (.addActionListener pass (pass-action parent game-state))
     (.add menu pass)
     (if (.isPopupTrigger event) (.show menu component x y))))
 
 (defn clicker [parent game-state]
   (let [click-handler #(when-let [clicked (get-click-index (-> % .getPoint .x) (-> % .getPoint .y))]
-                        (let [player (rules/active-player @game-state)
-                              color (key player)]
-                          (popup parent % (get-in @game-state [:players color :cards]) game-state color clicked)))]
+                        (let [color (key (rules/active-player @game-state))]
+                          (popup parent % (get-in @game-state [:players color :cards]) game-state clicked)))]
     (proxy [MouseAdapter] []
       (mousePressed [event] (click-handler event))
       (mouseReleased [event] (click-handler event)))))

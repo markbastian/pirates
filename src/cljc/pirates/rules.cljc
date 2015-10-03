@@ -38,12 +38,16 @@
     (map :color players)
     (map #(into {} { :name (:name %) :cards (initial-hand) :actions 0 }) players)))
 
+(defn active-player [{p :players}] (first (filter #(> (:actions (val %)) 0) p)))
+
 (defn init-game-state [player-prefs]
   { :turn-order (create-turn-sequence (map :color player-prefs))
     :players (init-players player-prefs)
     :board (make-board (map :color player-prefs)) })
 
-(defn winner? [{ { p :pieces } :board } color] (-> p last color (= 6)))
+(defn winner? [{ { p :pieces } :board :as game-state }]
+  (let [color (key (active-player game-state))]
+    (-> p last color (= 6))))
 
 (defn piece-count
   ([piece-slot] (reduce + (vals piece-slot)))
@@ -80,11 +84,12 @@
   (let [decreased (update-in game-state [:players color :actions] dec)]
     (if (= 1 actions) (start-turn player-color decreased) decreased)))
 
-(defn pass [color game-state]
-  (if (players-turn? color game-state)
-    (start-turn
-      (get-in game-state [:turn-order color])
-      (assoc-in game-state [:players color :actions] 0))))
+(defn pass [game-state]
+  (let [color (key (active-player game-state))]
+    (if (players-turn? color game-state)
+      (start-turn
+        (get-in game-state [:turn-order color])
+        (assoc-in game-state [:players color :actions] 0)))))
 
 (defn space-contents
   "Convert the pieces on the given space to a vector of pieces"
@@ -105,13 +110,13 @@
         de-carded (update-in added [:players pirate-color :cards card-symbol] dec)]
     de-carded))
 
-;Should inline and use destructuring
-(defn play-card [card color from-index game-state]
-  (if (and (player-has-card? card color game-state)
+(defn play-card [game-state card from-index]
+  (let [color (key (active-player game-state))]
+    (if (and (player-has-card? card color game-state)
            (square-has-color? color from-index game-state)
            (players-turn? color game-state))
     (use-action color (execute-play-card card color from-index game-state))
-    game-state))
+    game-state)))
 
 (defn execute-fall-back [from-index to-index pirate game-state]
   (let [removed (update-in game-state [:board :pieces from-index pirate] dec)
@@ -119,12 +124,11 @@
         added (update-in removed [:board :pieces to-index pirate] inc)]
     (update-in added [:players pirate :cards] #(apply cards->hand % (draw num-cards)))))
 
-(defn fall-back [color start-index game-state]
-  (let [to-index (next-fallback start-index (get-in game-state [:board :pieces]))]
+(defn fall-back [game-state start-index]
+  (let [color (key (active-player game-state))
+        to-index (next-fallback start-index (get-in game-state [:board :pieces]))]
     (if (and (not (nil? to-index))
              (square-has-color? color start-index game-state)
              (players-turn? color game-state))
       (use-action color (execute-fall-back start-index to-index color game-state))
       game-state)))
-
-(defn active-player [{p :players}] (first (filter #(> (:actions (val %)) 0) p)))

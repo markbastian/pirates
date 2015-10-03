@@ -3,64 +3,63 @@
   (:require [pirates.rules :as rules]
             [clojure.java.io :as io]
             [clojure.pprint])
-  (:import (java.awt Color BorderLayout Component Graphics2D)
+  (:import (java.awt Color BorderLayout Component Graphics2D Shape)
            (javax.imageio ImageIO)
            (javax.swing JFrame JPopupMenu JMenuItem JOptionPane JLabel)
-           (java.awt.geom Rectangle2D$Double Ellipse2D$Double)
+           (java.awt.geom Rectangle2D$Double Ellipse2D$Double RectangularShape)
            (java.awt.event MouseAdapter ActionListener MouseEvent)))
 
 (defn load-image [s] (-> s io/resource io/input-stream ImageIO/read))
 
 (def images
-  { :start  (load-image "pirates/hands6.png")
-    :boat   (load-image "pirates/sail1.png")
-    :keys   (load-image "pirates/old45.png")
-    :bottle (load-image "pirates/wine47.png")
-    :flag   (load-image "pirates/halloween16.png")
-    :hat    (load-image "pirates/fedora.png")
-    :pistol (load-image "pirates/old3.png")
-    :sword  (load-image "pirates/sword1.png")})
+  { :start (load-image "pirates/hands6.png")
+   :boat   (load-image "pirates/sail1.png")
+   :keys   (load-image "pirates/old45.png")
+   :bottle (load-image "pirates/wine47.png")
+   :flag   (load-image "pirates/halloween16.png")
+   :hat    (load-image "pirates/fedora.png")
+   :pistol (load-image "pirates/old3.png")
+   :sword  (load-image "pirates/sword1.png")})
 
 (def color-map
   { :red Color/RED :green Color/GREEN :blue Color/BLUE :yellow Color/YELLOW :brown (Color. 139 69 19) })
 
-(defn grid [] [[0 0] [1 0] [2 0] [3 0] [4 0] [5 0] [6 0] [7 0]
-                                                         [7 1]
-                                                         [7 2]
-               [7 3] [6 3] [5 3] [4 3] [3 3] [2 3] [1 3] [0 3]
-               [0 4]
-               [0 5]
-               [0 6] [1 6] [2 6] [3 6] [4 6] [5 6] [6 6] [7 6]
-                                                         [7 7]
-                                                         [7 8]
-               [7 9] [6 9] [5 9] [4 9] [3 9] [2 9] [1 9] [0 9]])
+(def grid [[0 0] [1 0] [2 0] [3 0] [4 0] [5 0] [6 0] [7 0]
+                                                     [7 1]
+                                                     [7 2]
+           [7 3] [6 3] [5 3] [4 3] [3 3] [2 3] [1 3] [0 3]
+           [0 4]
+           [0 5]
+           [0 6] [1 6] [2 6] [3 6] [4 6] [5 6] [6 6] [7 6]
+                                                     [7 7]
+                                                     [7 8]
+           [7 9] [6 9] [5 9] [4 9] [3 9] [2 9] [1 9] [0 9]])
 
 (defn create-square [coord dim]
-  (let [x (* dim (first coord))
-        y (* dim (second coord))]
-    (Rectangle2D$Double. x y dim dim)))
+  (Rectangle2D$Double. (* dim (first coord)) (* dim (second coord)) dim dim))
 
-(def track-shapes (vec (map #(create-square % 50) (grid))))
+(def track-shapes (mapv #(create-square % 50) grid))
 
 (def hand-shapes
   (zipmap
     (map #(create-square [9 %] 50) (range (count rules/card-types)))
     rules/card-types))
 
-(defn draw-squares [board g]
+(defn draw-image [g image shape]
+  (.drawImage g image (.getMinX shape) (.getMinY shape) (.getMaxX shape) (.getMaxY shape)
+              0 0 (.getWidth image) (.getHeight image) nil))
+
+(defn draw-squares [board ^Graphics2D g]
   (doseq [i (range (count board))]
     (let [image ((get board i) images)
-          shape (get track-shapes i)
-          dx1 (.getMinX shape)
-          dy1 (.getMinY shape)
-          dx2 (.getMaxX shape)
-          dy2 (.getMaxY shape)]
-      (.draw g shape)
-      (.drawImage g image dx1 dy1 dx2 dy2 0 0 (.getWidth image) (.getHeight image) nil))))
+          ^RectangularShape shape (get track-shapes i)]
+      (doto g
+        (.draw shape)
+        (draw-image image shape)))))
 
 (defn centered-circle [cx cy r](Ellipse2D$Double. (- cx r) (- cy r) (* r 2) (* r 2)))
 
-(defn draw-cards [player g]
+(defn draw-cards [player ^Graphics2D g]
   (let [color (color-map (key player))
         hand (:cards (val player))]
     (doseq [hand-shape hand-shapes]
@@ -68,24 +67,19 @@
             card-type (val hand-shape)
             image (card-type images)
             dx1 (.getMinX shape)
-            dy1 (.getMinY shape)
-            dx2 (.getMaxX shape)
-            dy2 (.getMaxY shape)]
-        (.setPaint g color)
-        (.draw g shape)
-        (.drawImage g image dx1 dy1 dx2 dy2 0 0 (.getWidth image) (.getHeight image) nil)
-        (.setPaint g Color/BLACK)
-        (.drawString g (str (card-type hand)) (float (+ dx1 (.getWidth shape))) (float (+ dy1 (.getHeight shape))))
-        ))))
+            dy1 (.getMinY shape)]
+        (doto g
+          (.setPaint color)
+          (.draw shape)
+          (draw-image image shape)
+          (.setPaint Color/BLACK)
+          (.drawString (str (card-type hand)) (float (+ dx1 (.getWidth shape))) (float (+ dy1 (.getHeight shape)))))))))
 
-;http://en.wikibooks.org/wiki/Clojure_Programming/Examples/API_Examples/Multimethod
-;fn is a dispatch function using the same args as the actual function to be dispatched.
-;Sort of a pre-eval'ed function.
 (defmulti draw-piece (fn [pieces _ _] (count (rules/space-contents pieces))))
 
 (defmethod draw-piece 0 [_ _ _])
 
-(defmethod draw-piece 1 [pieces boundary g]
+(defmethod draw-piece 1 [pieces boundary ^Graphics2D g]
   (let [piece (first (rules/space-contents pieces))
         color (piece color-map)
         cx (.getCenterX boundary)
@@ -95,7 +89,7 @@
     (.setColor g color)
     (.fill g shape)))
 
-(defmethod draw-piece 2 [pieces boundary g]
+(defmethod draw-piece 2 [pieces boundary ^Graphics2D g]
   (let [piece1 (first (rules/space-contents pieces))
         color1 (piece1 color-map)
         piece2 (second (rules/space-contents pieces))
@@ -108,7 +102,7 @@
     (.setColor g color2)
     (.fill g (Ellipse2D$Double. (- cx (* r 0.5)) (- (- cy (* r 0.5)) (/ r 2.0)) r r))))
 
-(defmethod draw-piece :default [pieces boundary g]
+(defmethod draw-piece :default [pieces boundary ^Graphics2D g]
   (let [p (rules/space-contents pieces)
         n (count p)
         cx (.getCenterX boundary)
@@ -126,20 +120,20 @@
         (.fill g shape)))))
 
 (defn draw-pieces
-  ([pieces boundary g] (draw-piece pieces boundary g))
-  ([pieces g]
+  ([pieces boundary ^Graphics2D g] (draw-piece pieces boundary g))
+  ([pieces ^Graphics2D g]
    (doseq [i (range (count pieces))]
     (let [local-pieces (get pieces i)
           shape (get track-shapes i)]
        (draw-pieces local-pieces shape g)))))
 
 (defn get-click-index [x y]
-  (first (filter #(.contains (get track-shapes %) x y) (range (count track-shapes)))))
+  (first (filter #(.contains ^Shape (get track-shapes %) x y) (range (count track-shapes)))))
 
 (defn play-card-action [parent game-state card color square-index]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (dosync (ref-set game-state (rules/play-card card color square-index @game-state)))
+      (reset! game-state (rules/play-card card color square-index @game-state))
       (.repaint parent)
       (if (rules/winner? @game-state color)
         (JOptionPane/showMessageDialog parent (str color " is the winner!"))))))
@@ -147,16 +141,16 @@
 (defn fall-back-action [parent game-state color square-index]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (dosync (ref-set game-state (rules/fall-back color square-index @game-state)))
+      (reset! game-state (rules/fall-back color square-index @game-state))
       (.repaint parent))))
 
 (defn pass-action [parent game-state color]
   (proxy [ActionListener] []
     (actionPerformed [_]
-      (dosync (ref-set game-state (rules/pass color @game-state)))
+      (reset! game-state (rules/pass color @game-state))
       (.repaint parent))))
 
-(defn popup [parent event cards game-state color square-index]
+(defn popup [parent ^MouseEvent event cards game-state color square-index]
   (let [menu (JPopupMenu.)
         playable-cards (filter #(> (val %) 0) cards)
         play-card-buttons (map #(JMenuItem. (str "Play " %)) playable-cards)
@@ -193,28 +187,30 @@
     (.addMouseListener component (clicker component game-state))
     component))
 
-(defn frame [initial-game-state]
+(defn frame [initial-game-state exit-condition]
   (let [frame (JFrame. "Player Options")
         first-player (first (keys (:turn-order initial-game-state)))
         started (rules/start-turn first-player initial-game-state)
-        game-state (ref started)]
+        game-state (atom started)]
     (doto frame
       (.setVisible true)
       (.setSize 800 600)
-      (.add (c game-state) BorderLayout/CENTER)
+      (.add ^Component (c game-state) BorderLayout/CENTER)
       (.add (JLabel. "Right-click on square with piece to make a move.") BorderLayout/SOUTH)
-      (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE))
+      (.setDefaultCloseOperation exit-condition))
     frame))
 
-;(frame
-;  (rules/init-game-state
-;    #{{ :name "Mark" :color :green }
-;      { :name "Bob" :color :yellow }
-;      { :name "Gene" :color :blue }}))
+(frame
+  (rules/init-game-state
+    #{{ :name "Mark" :color :green }
+      { :name "Bob" :color :yellow }
+      { :name "Gene" :color :blue }})
+  JFrame/EXIT_ON_CLOSE)
 
 (defn -main []
   (let [n (JOptionPane/showInputDialog nil "Enter players (2-5):")
         colors (take (read-string n) rules/pirate-colors)
         players (map #(partial {:color % :name (str % )}) colors)]
     (frame 
-      (rules/init-game-state players))))
+      (rules/init-game-state players)
+      JFrame/EXIT_ON_CLOSE)))

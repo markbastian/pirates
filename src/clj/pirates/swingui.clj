@@ -179,7 +179,7 @@
       (doto pp/pprint)))
 
 (defn frame [initial-game-state exit-condition]
-  (let [frame (JFrame. "Player Options")
+  (let [frame (JFrame. "Pirates!")
         first-player (first (keys (:turn-order initial-game-state)))
         started (rules/start-turn initial-game-state first-player)
         game-state (atom (almost-win started))]

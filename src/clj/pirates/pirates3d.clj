@@ -1,4 +1,4 @@
-(ns pirates3d
+(ns pirates.pirates3d
   (:require [pirates.swingui :as ps])
   (:import (com.jme3.app SimpleApplication)
            (com.jme3.scene Geometry Node)

@@ -4,7 +4,10 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.48"]]
+                 [org.clojure/clojurescript "1.7.48"]
+                 [com.jme3/jme3-core "3.1.0-SNAPSHOT"]
+                 [com.jme3/jme3-desktop "3.1.0-SNAPSHOT"]
+                 [com.jme3/jme3-lwjgl "3.1.0-SNAPSHOT"]]
 
   :main pirates.swingui
 
@@ -25,4 +28,6 @@
 
   :codox {:sources ["src/clj" "target/classes"]}
 
-  :aot :all)
+  :aot :all
+
+  :repositories [["jme" "http://updates.jmonkeyengine.org/maven/"]])

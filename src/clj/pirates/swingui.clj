@@ -51,7 +51,7 @@
 
 (defn draw-squares [^Graphics2D g board]
   (doseq [i (range (count board))]
-    (let [image ((get board i) images)
+    (let [image ((get-in board [i :symbol]) images)
           ^RectangularShape shape (get track-shapes i)]
       (doto g
         (.draw shape)
@@ -123,7 +123,7 @@
   ([^Graphics2D g pieces boundary] (draw-piece g pieces boundary))
   ([^Graphics2D g pieces]
    (doseq [i (range (count pieces))]
-    (let [local-pieces (get pieces i)
+    (let [local-pieces (get-in pieces [i :pieces])
           shape (get track-shapes i)]
        (draw-pieces g local-pieces shape)))))
 
@@ -161,8 +161,8 @@
   (let [component (proxy [Component] []
                     (paint [g]
                       (doto g
-                        (draw-squares (get-in @game-state [:board :symbols]))
-                        (draw-pieces (get-in @game-state [:board :pieces]))
+                        (draw-squares (:board @game-state))
+                        (draw-pieces (:board @game-state))
                         (draw-cards (rules/active-player @game-state)))))]
     (.addMouseListener component (clicker component game-state))
     component))
@@ -192,12 +192,12 @@
       (.setDefaultCloseOperation exit-condition))
     frame))
 
-(frame
-  (rules/init-game-state
-    #{{ :name "Mark" :color :green }
-      { :name "Bob" :color :yellow }
-      { :name "Gene" :color :blue }})
-  JFrame/EXIT_ON_CLOSE)
+;(frame
+;  (rules/init-game-state
+;    #{{ :name "Mark" :color :green }
+;      { :name "Bob" :color :yellow }
+;      { :name "Gene" :color :blue }})
+;  JFrame/DISPOSE_ON_CLOSE)
 
 (defn -main []
   (let [n (JOptionPane/showInputDialog nil "Enter players (2-5):")

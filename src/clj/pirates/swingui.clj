@@ -192,6 +192,7 @@
       (.setDefaultCloseOperation exit-condition))
     frame))
 
+;Uncomment and load this in the REPL if you don't want to run via lein run.
 ;(frame
 ;  (rules/init-game-state
 ;    #{{ :name "Mark" :color :green }

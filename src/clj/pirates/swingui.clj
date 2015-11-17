@@ -168,28 +168,36 @@
     component))
 
 (defn setup-winner-watch [state]
-  (add-watch state :watch-for-winner
+  (add-watch
+    state :watch-for-winner
              (fn [_ _ _ n]
                (if (rules/winner? n)
-                 (SwingUtilities/invokeLater (JOptionPane/showMessageDialog nil (str (key (rules/active-player n)) " is the winner!")))))))
+                 (SwingUtilities/invokeLater
+                   (JOptionPane/showMessageDialog
+                     nil (str (key (rules/active-player n)) " is the winner!")))))))
 
-(defn almost-win [state]
-  (-> state
-      ;(update-in state [:board :pieces 0 :green] dec)
-      (doto pp/pprint)))
+;(defn almost-win [state]
+;  (-> state
+;      (assoc-in [:board 0 :pieces :yellow] 0)
+;      (assoc-in [:board 36 :pieces :yellow] 1)
+;      (assoc-in [:board 37 :pieces :yellow] 5)
+;      (doto pp/pprint)))
 
 (defn frame [initial-game-state exit-condition]
   (let [frame (JFrame. "Pirates!")
         first-player (first (keys (:turn-order initial-game-state)))
         started (rules/start-turn initial-game-state first-player)
-        game-state (atom (almost-win started))]
+        ;game-state (atom (almost-win started))
+        game-state (atom started)
+        ]
     (setup-winner-watch game-state)
     (doto frame
-      (.setVisible true)
-      (.setSize 800 600)
+      (.setSize 600 600)
       (.add ^Component (c game-state) BorderLayout/CENTER)
       (.add (JLabel. "Right-click on square with piece to make a move.") BorderLayout/SOUTH)
-      (.setDefaultCloseOperation exit-condition))
+      (.setDefaultCloseOperation exit-condition)
+      (.setVisible true)
+      (.repaint))
     frame))
 
 ;Uncomment and load this in the REPL if you don't want to run via lein run.

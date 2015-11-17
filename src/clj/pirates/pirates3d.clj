@@ -1,4 +1,5 @@
-(ns pirates.pirates3d
+(ns pirates.pirates3d "A 3D version of Cartagena. Note that I just started this and nothing works yet. For now, look at
+the swingui version."
   (:require [pirates.swingui :as ps])
   (:import (com.jme3.app SimpleApplication)
            (com.jme3.scene Geometry Node)

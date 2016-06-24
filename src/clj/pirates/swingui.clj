@@ -51,7 +51,7 @@
 
 (defn draw-squares [^Graphics2D g board]
   (doseq [i (range (count board))]
-    (let [image ((get board i) images)
+    (let [image ((get-in board [i :symbol]) images)
           ^RectangularShape shape (get track-shapes i)]
       (doto g
         (.draw shape)
@@ -123,7 +123,7 @@
   ([^Graphics2D g pieces boundary] (draw-piece g pieces boundary))
   ([^Graphics2D g pieces]
    (doseq [i (range (count pieces))]
-    (let [local-pieces (get pieces i)
+    (let [local-pieces (get-in pieces [i :pieces])
           shape (get track-shapes i)]
        (draw-pieces g local-pieces shape)))))
 
@@ -161,43 +161,52 @@
   (let [component (proxy [Component] []
                     (paint [g]
                       (doto g
-                        (draw-squares (get-in @game-state [:board :symbols]))
-                        (draw-pieces (get-in @game-state [:board :pieces]))
+                        (draw-squares (:board @game-state))
+                        (draw-pieces (:board @game-state))
                         (draw-cards (rules/active-player @game-state)))))]
     (.addMouseListener component (clicker component game-state))
     component))
 
 (defn setup-winner-watch [state]
-  (add-watch state :watch-for-winner
+  (add-watch
+    state :watch-for-winner
              (fn [_ _ _ n]
                (if (rules/winner? n)
-                 (SwingUtilities/invokeLater (JOptionPane/showMessageDialog nil (str (key (rules/active-player n)) " is the winner!")))))))
+                 (SwingUtilities/invokeLater
+                   (JOptionPane/showMessageDialog
+                     nil (str (key (rules/active-player n)) " is the winner!")))))))
 
-(defn almost-win [state]
-  (-> state
-      ;(update-in state [:board :pieces 0 :green] dec)
-      (doto pp/pprint)))
+;(defn almost-win [state]
+;  (-> state
+;      (assoc-in [:board 0 :pieces :yellow] 0)
+;      (assoc-in [:board 36 :pieces :yellow] 1)
+;      (assoc-in [:board 37 :pieces :yellow] 5)
+;      (doto pp/pprint)))
 
 (defn frame [initial-game-state exit-condition]
-  (let [frame (JFrame. "Player Options")
+  (let [frame (JFrame. "Pirates!")
         first-player (first (keys (:turn-order initial-game-state)))
         started (rules/start-turn initial-game-state first-player)
-        game-state (atom (almost-win started))]
+        ;game-state (atom (almost-win started))
+        game-state (atom started)
+        ]
     (setup-winner-watch game-state)
     (doto frame
-      (.setVisible true)
-      (.setSize 800 600)
+      (.setSize 600 600)
       (.add ^Component (c game-state) BorderLayout/CENTER)
       (.add (JLabel. "Right-click on square with piece to make a move.") BorderLayout/SOUTH)
-      (.setDefaultCloseOperation exit-condition))
+      (.setDefaultCloseOperation exit-condition)
+      (.setVisible true)
+      (.repaint))
     frame))
 
-(frame
-  (rules/init-game-state
-    #{{ :name "Mark" :color :green }
-      { :name "Bob" :color :yellow }
-      { :name "Gene" :color :blue }})
-  JFrame/EXIT_ON_CLOSE)
+;Uncomment and load this in the REPL if you don't want to run via lein run.
+;(frame
+;  (rules/init-game-state
+;    #{{ :name "Mark" :color :green }
+;      { :name "Bob" :color :yellow }
+;      { :name "Gene" :color :blue }})
+;  JFrame/DISPOSE_ON_CLOSE)
 
 (defn -main []
   (let [n (JOptionPane/showInputDialog nil "Enter players (2-5):")

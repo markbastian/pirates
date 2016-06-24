@@ -18,6 +18,8 @@ Double-click the executable jar. To take a turn, right click on the square with 
 action. Once you have all of your pirates in the boat, you win. You are assigned a color (pick the one you want that
 pops up) and when your cards (icons on the right) are your color, it is your turn. It's a pretty minimal UI :(
 
+One thing I've noticed is that the initial UI may not display correctly on Windows. If you resize the frame it will render correctly. I've only got a Mac, so can't easily debug.
+
 ## Design
 
 This app was written as more of an exercise in learning Clojure than in writing a fun game (that takes a lot of work),

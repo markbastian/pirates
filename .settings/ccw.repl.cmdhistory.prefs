@@ -1,0 +1,2 @@
+cmdhistory=["(- 2 3)" "(require '[clojure.string \:as s])" "(s/reverse \\"This is a test.\\")" "exit" "(- 45 5)"]
+eclipse.preferences.version=1

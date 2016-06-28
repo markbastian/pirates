@@ -124,7 +124,7 @@
         (move pirate-color from-index to-index)
         (update-in [:players pirate-color :cards card-symbol] dec))))
 
-(defn play-card [game-state card from-index]
+#_(defn play-card [game-state card from-index]
   (let [color (active-player-color game-state)]
     (if (and (player-has-card? game-state card color)
            (square-has-color? game-state color from-index))
@@ -143,3 +143,25 @@
     (if (and to-index (square-has-color? game-state color start-index))
       (use-action (execute-fall-back game-state start-index to-index color) color)
       game-state)))
+
+(defmacro defaction [action-sym args w pred d action]
+  `(defn ~action-sym ~args
+     (let [game-state# ~(first args)
+           color# (active-player-color game-state#)]
+      (if (~pred color#)
+        (use-action (~action color#) color#)
+        game-state#))))
+
+(macroexpand '(defaction play-card-action [game-state card from-index]
+   :when #(and (player-has-card? game-state card %)
+              (square-has-color? game-state % from-index))
+   :do #(execute-play-card game-state card % from-index)))
+
+(defaction play-card [game-state card from-index]
+   :when #(and (player-has-card? game-state card %)
+              (square-has-color? game-state % from-index))
+   :do #(execute-play-card game-state card % from-index))
+
+#_(defaction fall-back [game-state start-index]
+   :when #(and to-index (square-has-color? game-state % start-index))
+   :do #(execute-fall-back game-state start-index to-index %))

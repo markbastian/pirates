@@ -201,12 +201,12 @@
     frame))
 
 ;Uncomment and load this in the REPL if you don't want to run via lein run.
-;(frame
-;  (rules/init-game-state
-;    #{{ :name "Mark" :color :green }
-;      { :name "Bob" :color :yellow }
-;      { :name "Gene" :color :blue }})
-;  JFrame/DISPOSE_ON_CLOSE)
+(frame
+  (rules/init-game-state
+    #{{ :name "Mark" :color :green }
+      { :name "Bob" :color :yellow }
+      { :name "Gene" :color :blue }})
+  JFrame/DISPOSE_ON_CLOSE)
 
 (defn -main []
   (let [n (JOptionPane/showInputDialog nil "Enter players (2-5):")

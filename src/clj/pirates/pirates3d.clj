@@ -1,7 +1,7 @@
 (ns pirates.pirates3d "A 3D version of Cartagena. Note that I just started this and nothing works yet. For now, look at
 the swingui version."
   (:require [pirates.swingui :as ps])
-  (:import (com.jme3.app SimpleApplication)
+  #_(:import (com.jme3.app SimpleApplication)
            (com.jme3.scene Geometry Node)
            (com.jme3.scene.shape Box)
            (com.jme3.material Material)
@@ -9,7 +9,7 @@ the swingui version."
            (com.jme3.asset AssetManager)
            (com.jme3.light DirectionalLight)))
 
-(defn create-grid [^AssetManager am]
+#_(defn create-grid [^AssetManager am]
   (let [mat (doto (Material. am "Common/MatDefs/Light/Lighting.j3md")
               (.setBoolean "UseMaterialColors" true)
               (.setColor "Diffuse" ColorRGBA/Red)
